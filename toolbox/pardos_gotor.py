@@ -1,5 +1,6 @@
 import numpy as np
-from toolbox.screws_code import intersect_lines_3d
+from toolbox.screws_code import intersect_lines_3d, joint2twist
+from toolbox.paden_kahan import paden_kahan_one
 
 def pardos_gotor_one(x1, pp, pk):
     """
@@ -160,7 +161,6 @@ def pardos_gotor_four(x1, x2, pp, pk):
                             [t12, t22]])
     return Theta1Theta2
 
-
 def pardos_gotor_five(x1, pp, pk):
     """
     Compute the angle theta (Theta1) to rotate point `pp` to `pk`
@@ -267,6 +267,143 @@ def pardos_gotor_six(x1, x2, pp, pk):
     t2d = np.arctan2(np.real(w2 @ np.cross(up2, np2)), np.real(up2 @ np2))
     
     return np.array([[t1c, t2c], [t1d, t2d]])
+
+def pardos_gotor_seven(x1, x2, x3, pp, pk):
+    """
+    Solve the inverse kinematics problem for 3 consecutive rotations:
+    1 skew (non-parallel) axis and 2 parallel axes using Pardos-Gotor Subproblem 7.
+
+    Parameters:
+        x1, x2, x3 : np.ndarray
+            6x1 twists (v; w) for each screw motion.
+        pp, pk : np.ndarray
+            3x1 initial and final positions in SE(3).
+
+    Returns:
+        The123 : np.ndarray
+            Array with up to 4 solutions, each as [theta1, theta2, theta3].
+    """
+
+    v1, w1 = x1[:3], x1[3:]
+    v3, w3 = x3[:3], x3[3:]
+
+    r1 = np.cross(w1, v1) / np.linalg.norm(w1)**2
+    r3 = np.cross(w3, v3) / np.linalg.norm(w3)**2
+
+    v = pk - r1
+    vw1 = np.outer(w1, w1) @ v
+    vp1 = v - vw1
+    nvp = np.linalg.norm(vp1)
+    o1 = r1 + vw1
+
+    u = pp - r3
+    uw3 = np.outer(w3, w3) @ u
+    up3 = u - uw3
+    nup = np.linalg.norm(up3)
+    o3 = r3 + uw3
+
+    # Planes in normal form
+    d1 = w1 @ o1
+    d3 = w3 @ o3
+
+    # Direction of intersection line
+    v4 = np.cross(w1, w3)
+    x4 = np.concatenate([v4, np.zeros(3)]).reshape(-1, 1)  # Twist for PG3
+    w13 = w1 @ w3
+
+    # A point on the intersection line
+    r4 = (w1 * (d1 - d3 * w13) + w3 * (d3 - d1 * w13)) / (1 - w13)
+
+    # Find intersection points of the line with the circle using PG3
+    t4 = pardos_gotor_three(x4, r4, o1, nvp)
+    pc = r4 + t4[0] * v4
+    pd = r4 + t4[1] * v4
+
+    # Use PK1 to find theta1 (two solutions)
+    m1 = pc - r1
+    mp1 = m1 - (np.outer(w1, w1) @ m1)
+    n1 = pd - r1
+    np1 = n1 - (np.outer(w1, w1) @ n1)
+
+    t1ck = np.arctan2(np.real(w1 @ np.cross(mp1, vp1)), np.real(mp1 @ vp1))
+    t1dk = np.arctan2(np.real(w1 @ np.cross(np1, vp1)), np.real(np1 @ vp1))
+
+    # Use PG4 to solve for theta2 and theta3 (each with 2 solutions)
+    t23c = pardos_gotor_four(x2, x3, pp, pc)  # shape (2, 2)
+    t23d = pardos_gotor_four(x2, x3, pp, pd)
+
+    # Construct the final solution matrix
+    The123 = np.array([
+        [t1ck, t23c[0, 0], t23c[0, 1]],
+        [t1ck, t23c[1, 0], t23c[1, 1]],
+        [t1dk, t23d[0, 0], t23d[0, 1]],
+        [t1dk, t23d[1, 0], t23d[1, 1]]
+    ])
+
+    return The123
+
+import numpy as np
+
+def pardos_gotor_eight(x1, x2, x3, Hp, Hk):
+    """
+    PardosGotorEight:
+    Solve the inverse kinematics for three consecutive parallel revolute joints using screw theory.
+    
+    Parameters:
+        x1, x2, x3 : ndarray (6,)
+            Twist vectors [v; w] for the three screw axes (assumed to be parallel).
+        Hp : ndarray (4,4)
+            Initial pose as a homogeneous transformation matrix.
+        Hk : ndarray (4,4)
+            Final pose as a homogeneous transformation matrix.
+
+    Returns:
+        The123 : ndarray (2, 3)
+            Two possible sets of joint angles [theta1, theta2, theta3] that move Hp to Hk.
+    """
+    # Descomposición del tercer tornillo
+    v3 = x3[0:3]
+    w3 = x3[3:6]
+
+    # Cálculo del punto r3 sobre el eje de rotación
+    r3 = np.cross(w3, v3) / (np.linalg.norm(w3) ** 2)
+
+    # Punto inicial en el espacio
+    pp = Hp[0:3, 3]
+    u = pp - r3
+    o3p = r3 + np.outer(w3, w3) @ u  # Proyección ortogonal sobre el eje w3
+
+    # Punto final deseado
+    pk = Hk[0:3, 3]
+
+    # Transformación del punto o3p mediante la pose relativa Hk * inv(Hp)
+    o3ph = np.append(o3p, 1)
+    o3kh = Hk @ np.linalg.inv(Hp) @ o3ph
+    o3k = o3kh[0:3]
+
+    # Resolver el subproblema PG4 con x1 y x2 para mover o3p hasta o3k
+    t12 = pardos_gotor_four(x1, x2, o3p, o3k)  # Output: (2,2) → [[t1co, t2oc], [t1do, t2od]]
+
+    # Obtener el vector twist del eje x3 pasando por o3k
+    x3k = joint2twist(w3, o3k, 'rot')
+
+    # Nuevo punto a transformar por el total de las tres rotaciones
+    ppk = o3k + (pp - o3p)
+
+    # Resolver el ángulo total de las tres rotaciones
+    t123 = paden_kahan_one(x3k, ppk, pk)
+
+    # Determinar t3 para cada solución parcial t1 y t2
+    t31 = t123 - t12[0, 0] - t12[0, 1]
+    t32 = t123 - t12[1, 0] - t12[1, 1]
+
+    # Componer soluciones completas
+    The123 = np.array([
+        [t12[0, 0], t12[0, 1], t31],
+        [t12[1, 0], t12[1, 1], t32]
+    ])
+
+    return The123
 
 class NoParalelVectors(Exception):
     pass
