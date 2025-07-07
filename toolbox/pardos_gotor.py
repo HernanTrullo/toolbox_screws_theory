@@ -342,8 +342,6 @@ def pardos_gotor_seven(x1, x2, x3, pp, pk):
 
     return The123
 
-import numpy as np
-
 def pardos_gotor_eight(x1, x2, x3, Hp, Hk):
     """
     PardosGotorEight:

@@ -10,7 +10,7 @@ Mag = np.pi / 8
 Axis1 = np.array([0, 1, 0])    # Eje de rotación
 p1 = np.array([0, 0, 0])       # Punto por donde pasa el eje
 JointType1 = 'rot'             # Tipo de articulación
-Twist = joint2twist(Axis1, p1, JointType1)  # Función asumida
+Twist = joint2twist(Axis1, p1, JointType1)  
 
 # Paso 2: Cinemática directa con Mag (ángulo dado)
 TwMag1 = np.vstack((Twist, Mag))    # Concatenar twist con el ángulo
@@ -20,10 +20,10 @@ pk1h = HstR1 @ pp_hom                # Aplicar transformación
 pk1 = pk1h[:3]                       # Extraer coordenadas
 
 # Paso 3: Cinemática inversa (resolver Subproblema 1)
-Theta1 = paden_kahan_one(Twist, pp, pk1)  # Función asumida
+Theta1 = paden_kahan_one(Twist, pp, pk1) 
 
 # Paso 4: Verificación con Theta1
-TwMag2 = np.vstack((Twist, Mag)) 
+TwMag2 = np.vstack((Twist, Theta1)) 
 HstR2 = forward_kinematics_poe(TwMag2)
 pk2h = HstR2 @ pp_hom
 pk2 = pk2h[:3]

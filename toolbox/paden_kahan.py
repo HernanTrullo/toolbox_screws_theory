@@ -94,6 +94,33 @@ def paden_kahan_two(x1, x2, pp, pk):
 
 
 def paden_kahan_three(x1, pp, pk, de):
+    """
+    Solves the Paden-Kahan Subproblem 3 (PK3) in screw theory for inverse kinematics.
+
+    Given a screw axis (x1), two points (pp and pk), and a scalar distance (de), this function
+    finds the possible rotation angles (theta1) about the axis such that the rotated point `pp`
+    lies on a sphere of radius `de` centered at `pk`. This subproblem arises when the intersection
+    between a helical trajectory and a sphere is sought, typically in the context of inverse kinematics.
+
+    Parameters:
+    ----------
+    x1 : ndarray of shape (6,1)
+        The screw axis represented as a 6D vector [v; w], where:
+        - v is the linear velocity vector (first 3 elements)
+        - w is the angular velocity vector (last 3 elements), assumed to be non-zero
+    pp : ndarray of shape (3,)
+        The initial point to be rotated.
+    pk : ndarray of shape (3,)
+        The center of the sphere.
+    de : float
+        The desired distance (radius of the sphere) between the rotated point and `pk`.
+
+    Returns:
+    -------
+    theta1 : ndarray of shape (2,)
+        The two possible solutions (in radians) for the rotation angle theta1
+        that satisfy the geometric constraints of the problem.
+    """
     v1 = x1[0:3,0]
     w1 = x1[3:,0]
     w1 = w1 / np.linalg.norm(w1)  # Asegura que w1 es unitario
