@@ -1,20 +1,19 @@
 # Copyright (C) 2025 Hernan Trullo
 #
-# This file is part of [Nombre de tu proyecto o biblioteca].
+# This file is part of [screws theory toolbox].
 #
-# [Nombre de tu proyecto o biblioteca] is free software: you can redistribute it and/or modify
+# [screws ik] is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# [Nombre de tu proyecto o biblioteca] is distributed in the hope that it will be useful,
+# [screws ik] is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Lesser General Public License for more details.
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 import numpy as np
 from toolbox.paden_kahan import paden_kahan_two
 from toolbox.screws_code import forward_kinematics_poe, joint2twist
