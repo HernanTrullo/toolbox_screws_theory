@@ -7,7 +7,7 @@ def paden_kahan_one(x1, pp, pk):
     around the screw axis defined by twist vector `x1`, assuming pure rotation.
 
     Parameters:
-    - x1: (6,) ndarray, the twist [v; w], where v and w are (3,)
+    - x1: (6,1) ndarray, the twist [v; w], where v and w are (3,1)
     - pp: (3,) ndarray, the initial position
     - pk: (3,) ndarray, the target position
 

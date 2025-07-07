@@ -6,7 +6,7 @@ from toolbox.paden_kahan import paden_kahan_three, paden_kahan_two, paden_kahan_
 # Número de grados de libertad
 n = 6
 # Generar magnitudes aleatorias theta1-theta6
-Mag = np.ones(6)*np.pi/4
+Mag = np.ones(6)*np.pi
 
 # Características mecánicas del robot IRB120
 po = np.array([0, 0, 0])
@@ -78,7 +78,7 @@ for i in range(0, 8, 2):
     Theta_STR1[i:i+2, 3:5] = t4t5
 
 # Paso 4: Theta6 por PK1
-noapHst0io = noap @ np.linalg.inv(Hst0) @ np.append(po, 1)
+noapHst0io = noap @ np.linalg.inv(Hst0) @ np.append(pk, 1)
 for i in range(8):
     pk2pt = noapHst0io
     for j in range(5):
