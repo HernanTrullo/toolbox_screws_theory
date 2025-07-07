@@ -39,4 +39,4 @@ toolbox_screws_theory/
 ```bash
 git clone https://github.com/HernanTrullo/toolbox_screws_theory.git
 cd toolbox_screws_theory
-pip install -r requirements.txt
+
