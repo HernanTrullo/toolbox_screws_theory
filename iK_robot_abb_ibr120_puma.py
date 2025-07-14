@@ -56,6 +56,9 @@ for i in range(1, n):
 Hst0 = np.array([[-1, 0, 0, 0.3020],[0,1,0,0],[0,0,-1, 0.47],[0,0,0,1]])
 #Aplicar Forward Kinematics POE
 TwMag = np.vstack((Twist, Mag))  # Apila Twist (6xn) y Mag (1xn)
+
+
+
 HstR = forward_kinematics_poe(TwMag)
 noap = HstR @ Hst0
 
