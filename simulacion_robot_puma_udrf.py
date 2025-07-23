@@ -1,99 +1,114 @@
 import pybullet as p
 import pybullet_data
 import time
-import math
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from iK_robot_abb_ibr120 import ik_robot_puma
+from toolbox.trajectory import genrate_trajectory_quintic, normalize_angle_rad
 
-# Función para calcular el polinomio de grado 5
-def quintic_polynomial(t, p_start, p_end):
-    t = np.clip(t, 0, 1)  # Normalizar tiempo entre 0 y 1
-    a0 = p_start
-    a1 = 0
-    a2 = 0
-    a3 = 10 * (p_end - p_start)
-    a4 = -15 * (p_end - p_start)
-    a5 = 6 * (p_end - p_start)
-    return a0 + a1 * t + a2 * t**2 + a3 * t**3 + a4 * t**4 + a5 * t**5
+def generate_trajectory(p_start, p_end, duration, sampling_time):
+    x = genrate_trajectory_quintic(sampling_time, p_start[0], p_end[0], duration)
+    y = genrate_trajectory_quintic(sampling_time, p_start[1], p_end[1], duration)
+    z = genrate_trajectory_quintic(sampling_time, p_start[2], p_end[2], duration)
 
-# Función de cinemática inversa (simulada, reemplaza con tu implementación)
-def ik_robot_puma(matrix_homogenea):
-    # Asume que matrix_homogenea es una matriz 4x4 (numpy array)
-    # Debe devolver un vector de 6 ángulos articulares [theta1, theta2, ..., theta6]
-    # Aquí se simula una salida genérica; reemplaza con tu función real
-    return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Placeholder
+    trajectory = []
+    for i in range(len(x)):
+        homogeneous_matrix = np.eye(4)
+        homogeneous_matrix[:3, :3] = np.array([[1, 0, 0],[0,1,0],[0,0,1]])  # Rotación identidad con ajustes de signo
+        homogeneous_matrix[:3, 3] = np.array([x[i], y[i], z[i]])
+        trajectory.append(homogeneous_matrix)
 
-# Conexión con GUI
+    return trajectory, (x, y, z)
+
+# Parámetros
+duration = 10  # segundos
+sampling_time = 1.0 / 240.0  # 240 Hz
+p_start = np.array([0.462, 0, 0.43])
+p_end   = np.array([0.462, 0, 0.23])
+
+# Generar trayectoria cartesiana y articular
+trajectory, xyz_trajectory = generate_trajectory(p_start, p_end, duration, sampling_time)
+joint_trajectories = [ik_robot_puma(hm,7) for hm in trajectory]
+
+# --- Gráfico 3D de trayectoria cartesiana ---
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(*xyz_trajectory, label='Trayectoria', color='blue')
+ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
+ax.set_title('Trayectoria cartesiana 3D')
+ax.legend(); plt.show()
+
+# --- Gráfico de señales articulares ---
+qs = [[normalize_angle_rad(fila[i]) for fila in joint_trajectories] for i in range(6)]
+
+fig, axs = plt.subplots(6, 1, figsize=(10, 12), sharex=True)
+for i in range(6):
+    axs[i].plot(qs[i], label=f'q{i+1}')
+    axs[i].set_ylabel(f'q{i+1} [rad]')
+    axs[i].legend(loc='upper right'); axs[i].grid(True)
+axs[-1].set_xlabel('Muestras'); plt.tight_layout(); plt.show()
+
+# --- PyBullet: Simulación ---
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
-
-# Cargar plano
 p.loadURDF("plane.urdf")
 
-# Cargar robot PUMA 560 con base fija
 robot_id = p.loadURDF(
-    "robots_models/puma560_description/urdf/puma560_robot.urdf",
+    "robots_models/irb120_description/urdf/irb120.urdf",
     basePosition=[0, 0, 0],
     useFixedBase=True
 )
 
-# Obtener número de articulaciones
+# Detectar articulaciones revolutas
 num_joints = p.getNumJoints(robot_id)
+controlled_joints = [
+    i for i in range(num_joints)
+    if p.getJointInfo(robot_id, i)[2] == p.JOINT_REVOLUTE
+]
 
-# Establecer posición inicial de cámara
-p.resetDebugVisualizerCamera(
-    cameraDistance=2.5,
-    cameraYaw=50,
-    cameraPitch=-35,
-    cameraTargetPosition=[0, 0, 0.5]
-)
+# Crear sliders de cámara y control
+slider_cam_dist = p.addUserDebugParameter("Camera Distance", 0.5, 5.0, 2.5)
+slider_cam_yaw = p.addUserDebugParameter("Camera Yaw", -180, 180, 50)
+slider_cam_pitch = p.addUserDebugParameter("Camera Pitch", -90, 90, -35)
+slider_target_x = p.addUserDebugParameter("Target X", -2, 2, 0)
+slider_target_y = p.addUserDebugParameter("Target Y", -2, 2, 0)
+slider_target_z = p.addUserDebugParameter("Target Z", 0, 2, 0.5)
+slider_pause = p.addUserDebugParameter("Simulación (1=Play, 0=Pausa)", 0, 1, 1)
+slider_reset = p.addUserDebugParameter("Reiniciar (1=Reset)", 0, 1, 0)
 
-# Parámetros de la trayectoria
-duration = 10  # segundos
-sampling_time = 1.0 / 240.0  # frecuencia de simulación (240 Hz)
-start_time = time.time()
+step = 0
+reset_flag_last = 0
 
-# Puntos inicial y final de la trayectoria lineal en 3D
-p_start = np.array([0.5, 0.0, 0.5])  # [x_s, y_s, z_s]
-p_end = np.array([0.7, 0.2, 0.7])    # [x_e, y_e, z_e]
-
-# Matriz de rotación (orientación constante, identidad por defecto)
-rotation_matrix = np.eye(3)  # Matriz identidad 3x3
-
-# Bucle de simulación
 while p.isConnected():
-    current_time = time.time() - start_time
-    if current_time > duration:
-        break  # detener después de 10 segundos
+    sim_flag = p.readUserDebugParameter(slider_pause)
+    reset_flag = p.readUserDebugParameter(slider_reset)
 
-    # Calcular tiempo normalizado (0 a 1)
-    t_normalized = current_time / duration
+    # Actualizar cámara
+    cam_params = [p.readUserDebugParameter(s) for s in [
+        slider_cam_dist, slider_cam_yaw, slider_cam_pitch,
+        slider_target_x, slider_target_y, slider_target_z
+    ]]
+    p.resetDebugVisualizerCamera(cam_params[0], cam_params[1], cam_params[2], cam_params[3:6])
 
-    # Calcular posición deseada usando el polinomio de grado 5
-    x = quintic_polynomial(t_normalized, p_start[0], p_end[0])
-    y = quintic_polynomial(t_normalized, p_start[1], p_end[1])
-    z = quintic_polynomial(t_normalized, p_start[2], p_end[2])
-    position = np.array([x, y, z])
+    # Reinicio
+    if reset_flag > 0.5 and reset_flag_last <= 0.5:
+        step = 0
+        print("▶ Trayectoria reiniciada")
+    reset_flag_last = reset_flag
 
-    # Construir matriz homogénea (4x4)
-    homogeneous_matrix = np.eye(4)
-    homogeneous_matrix[:3, :3] = rotation_matrix  # Matriz de rotación
-    homogeneous_matrix[:3, 3] = position           # Vector de posición
-
-    # Calcular cinemática inversa
-    joint_angles = ik_robot_puma(homogeneous_matrix)
-
-    # Controlar las articulaciones
-    for joint_index in range(min(num_joints, len(joint_angles))):
-        p.setJointMotorControl2(
-            bodyUniqueId=robot_id,
-            jointIndex=joint_index,
-            controlMode=p.POSITION_CONTROL,
-            targetPosition=joint_angles[joint_index],
-            force=500
-        )
-
-    p.stepSimulation()
+    if sim_flag > 0.5:
+        if step < len(joint_trajectories):
+            joint_angles = joint_trajectories[step]
+            for j, joint_index in enumerate(controlled_joints):
+                p.setJointMotorControl2(
+                    bodyUniqueId=robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=joint_angles[j],
+                    force=500
+                )
+                
+            step += 1
+        p.stepSimulation()
     time.sleep(sampling_time)
-
-# Desconectar
-p.disconnect()

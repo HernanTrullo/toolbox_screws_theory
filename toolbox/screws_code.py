@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 def intersect_lines_3d(axes, points):
     """
@@ -151,6 +152,54 @@ def joint2twist(Axis, Point, JointType):
         xi = np.zeros(6)
 
     return xi.reshape(-1,1)
+
+
+def tform2adjoint(tform):
+    """
+    Convert a 4x4 homogeneous matrix to its 6x6 adjoint matrix.
+
+    Parameters:
+    tform(np.ndarray): 4x4 transformation matrix.
+
+    Returns:
+    np.ndarray: 6x6 adjoint matrix.
+    """
+    R = tform[0:3, 0:3]
+    p = tform[0:3, 3]
+    Ad = np.block([
+        [R, axis2skew(p) @ R],
+        [np.zeros((3, 3)), R]
+    ])
+    return Ad
+
+def geo_jacobian_s(TwMag):
+    """
+    Calculates the Geometric Jacobian in the spatial frame.
+
+    Parameters:
+    TwMag -- a 7xn matrix where each column contains:
+    - the 6 components of the screw (twist)
+    - a scalar magnitude (theta)
+
+    Returns:
+    JstS -- Geometric Jacobian in the (6xn) spatial frame
+    """
+    n = TwMag.shape[1]
+    JstS = TwMag[0:6, :].copy()
+    PoE = expScrew(TwMag[:, 0])  # Primer exponencial
+
+    for i in range(1, n):
+        adj = tform2adjoint(PoE)
+        JstS[:, i] = adj @ TwMag[0:6, i]
+        PoE = PoE @ expScrew(TwMag[:, i])
+
+    return JstS
+
+
+def tform2eul(T, order='XYZ'):
+    rot = R.from_matrix(T[:3, :3])
+    return rot.as_euler(order.lower(), degrees=False)
+
 
 def forward_kinematics_poe(TwMag):
     """

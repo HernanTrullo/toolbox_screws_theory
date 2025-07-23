@@ -1,0 +1,17 @@
+<launch>
+
+    <arg name="robot" default="false" />
+    <arg name="table" default="false" />
+    <arg name="gripper_2f" default="false" />
+	<arg name="gripper_3f" default="false" />
+	<arg name="camera" default="false" />
+   
+    <include if="$(arg robot)" file="$(find irb120_moveit)/launch/demo.launch" />
+
+    <include if="$(arg gripper_2f)" file="$(find irb120_2fgripper_moveit)/launch/demo.launch" />
+
+    <include if="$(arg gripper_3f)" file="$(find irb120_3fgripper_moveit)/launch/demo.launch" />
+
+    <include if="$(arg table)" file="$(find irb120_endeffector_moveit)/launch/demo.launch" />
+   
+</launch>
