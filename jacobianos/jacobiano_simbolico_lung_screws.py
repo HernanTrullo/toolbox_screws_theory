@@ -5,6 +5,20 @@ import numpy as np
 # En esta articulación las condiciones iniciales son j=3; s4 = [0,0,1]' y s_o4 [0,0,0]'
 
 def jacobiano_lung_screws(Tnn, alpha, a, d, Joint):
+    """
+    Computes the geometric Jacobian using screw theory, assuming a lung-shaped configuration
+    with a central joint (j = 4), and applying both forward and backward propagation.
+
+    Parameters:
+    - Tnn: dictionary of homogeneous transformation matrices T_{i}^{j} (SymPy.Matrix)
+    - alpha: dictionary of DH twist angles α_i (symbolic)
+    - a: dictionary of DH link lengths a_i (symbolic)
+    - d: dictionary of DH offsets d_i (symbolic)
+    - Joint: list of joint types: 'R' for revolute, 'P' for prismatic
+
+    Returns:
+    - J: dictionary containing the Jacobian columns J_i for each joint i
+    """
     j = 4
     S = {f'{j+1}': sp.Matrix([[0], [0], [1]])}
     So = {f'{j+1}': sp.Matrix([[0], [0], [0]])}
