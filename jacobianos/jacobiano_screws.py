@@ -1,7 +1,5 @@
 import numpy as np
 from toolbox.screws_code import tform2eul, geo_jacobian_s, joint2twist, forward_kinematics_poe, axis2skew
-
-
 # ----------------------
 # Datos del robot (posición de referencia)
 # ----------------------
