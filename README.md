@@ -1,3 +1,6 @@
+# Version python
+Python 3.12.3
+
 # ScrewsIK Toolbox
 
 This repository contains a complete Python implementation of inverse kinematics algorithms based on **screw theory**, originally written in MATLAB and translated to Python by Hernan Trullo.
